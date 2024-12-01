@@ -132,7 +132,7 @@ export class TrafficLightDemo extends DurableObject {
 	  // Function to broadcast updates to all connected clients
 	  const broadcastUpdate = () => {
 		const updateMessage = JSON.stringify({
-		  connectedusers: this.currentlyConnectedWebSockets,
+		  connectedusers: this.ctx.getWebSockets().length,
 		  "1": {
 			id: 1,
 			status: this.tramLight,
@@ -150,6 +150,7 @@ export class TrafficLightDemo extends DurableObject {
 			ws.send(updateMessage);
 	  	});
 	  };
+
 
 	  // Call broadcastUpdate initially to send the first data
 	  broadcastUpdate();
@@ -233,7 +234,7 @@ export class TrafficLightDemo extends DurableObject {
 	  
 		  updates.push({ id, status, distance_cm, last_updated });
 		  const Current = JSON.stringify({
-			connectedusers: this.currentlyConnectedWebSockets,
+			connectedusers: this.ctx.getWebSockets().length,
 			"1": {
 				id: 1,
 				status: this.tramLight,
