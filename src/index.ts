@@ -78,7 +78,6 @@ export class TrafficLightDemo extends DurableObject {
 	  this.carLastUpdate = "2000-01-01T00:00:00Z";
 
 	  this.initializeState();
-
 	}
 
 	async initializeState() {
@@ -88,6 +87,10 @@ export class TrafficLightDemo extends DurableObject {
 		  this.tramLight = data.status;
 		  this.tramDistanceCm = data.distance_cm;
 		  this.tramLastUpdate = data.last_updated;
+		} else {
+			this.tramLight = "red";
+			this.tramDistanceCm = -1;
+			this.tramLastUpdate = "2000-01-01T00:00:00Z";
 		}
 	
 		const carValue = await this.env.TrafficLightDemoKV.get("car");
@@ -96,7 +99,13 @@ export class TrafficLightDemo extends DurableObject {
 		  this.carLight = data.status;
 		  this.carDistanceCm = data.distance_cm;
 		  this.carLastUpdate = data.last_updated;
+		} else {
+			this.carLight = "red";
+			this.carDistanceCm = -1;
+			this.carLastUpdate = "2000-01-01T00:00:00Z";
 		}
+
+		return true;
 	  }
 	
 	
@@ -117,8 +126,8 @@ export class TrafficLightDemo extends DurableObject {
 			last_updated: this.carLastUpdate,
 		};
 
+		
 
-	  
 		return new Response(JSON.stringify({ Tram, Car }), {
 		  status: 200,
 		  headers: { 'Content-Type': 'application/json' },
@@ -132,7 +141,6 @@ export class TrafficLightDemo extends DurableObject {
 	  // Calling accept() tells the runtime that this WebSocket is to begin terminating
 	  // request within the Durable Object. It has the effect of "accepting" the connection,
 	  // and allowing the WebSocket to send and receive messages.
-	  
 	  this.ctx.acceptWebSocket(server);
   
 	  this.currentlyConnectedWebSockets += 1;
@@ -335,6 +343,11 @@ export default {
 		const demo = env.TrafficLightDemo;
 		let id: DurableObjectId = demo.idFromName("demo");
 		let stub = demo.get(id);
+
+		while (await stub.initializeState() === false) {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			console.log("Waiting for state to be initialized");
+		}
 
 		if (request.url.endsWith("/websocket")) {
 			const upgradeHeader = request.headers.get('Upgrade');
