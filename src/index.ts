@@ -156,13 +156,6 @@ export class TrafficLightDemo extends DurableObject {
 
 	  // Check updates every 0.1 seconds and if there is any change, broadcast it.
 	  // If there is no changes, the client will not receive any updates.
-	  
-
-	  // If the client closes the connection, the runtime will close the connection too.
-	  server.addEventListener('close', (cls: CloseEvent) => {
-		this.currentlyConnectedWebSockets -= 1;
-		server.close(cls.code, "Durable Object is closing WebSocket");
-	  });
   
 	  return new Response(null, {
 		status: 101,
