@@ -69,36 +69,38 @@ export class TrafficLightDemo extends DurableObject {
 	  // WebSockets accepted via the Hibernation API can survive
 	  // a certain type of eviction, but we will not cover that here.
 	  super(ctx, env);
-	  this.currentlyConnectedWebSockets = 0;
-	  this.tramLight = "red";
-	  this.tramDistanceCm = -1;
-	  this.tramLastUpdate = "2000-01-01T00:00:00Z";
-	  this.carLight = "red";
-	  this.carDistanceCm = -1;
-	  this.carLastUpdate = "2000-01-01T00:00:00Z";
 
-	  this.initializeState();
-
-	}
-
-	async initializeState() {
-		const tramValue = await this.env.TrafficLightDemoKV.get("tram");
+	  const tramValue = env.TrafficLightDemoKV.get("tram");
 		if (tramValue) {
 		  const data = JSON.parse(tramValue);
 		  this.tramLight = data.status;
 		  this.tramDistanceCm = data.distance_cm;
 		  this.tramLastUpdate = data.last_updated;
 		}
+		else {
+			this.tramLight = "red";
+			this.tramDistanceCm = -1;
+			this.tramLastUpdate = "2000-01-01T00:00:00Z";
+		}
 	
-		const carValue = await this.env.TrafficLightDemoKV.get("car");
+		const carValue = env.TrafficLightDemoKV.get("car");
 		if (carValue) {
 		  const data = JSON.parse(carValue);
 		  this.carLight = data.status;
 		  this.carDistanceCm = data.distance_cm;
 		  this.carLastUpdate = data.last_updated;
 		}
-	  }
-	
+		else {
+			this.carLight = "red";
+			this.carDistanceCm = -1;
+			this.carLastUpdate = "2000-01-01T00:00:00Z";
+		}
+
+	  this.currentlyConnectedWebSockets = 0;
+
+
+	}
+
 	
   
 
