@@ -132,13 +132,13 @@ export class TrafficLightDemo extends DurableObject {
 	  const broadcastUpdate = () => {
 		const updateMessage = JSON.stringify({
 		  connectedusers: this.currentlyConnectedWebSockets,
-		  trafficLightData: {
+		  "1": {
 			id: 1,
 			status: this.tramLight,
 			distance_cm: this.tramDistanceCm,
 			last_updated: this.tramLastUpdate,
 		  },
-		  trafficLightData2: {
+		  "2": {
 			id: 2,
 			status: this.carLight,
 			distance_cm: this.carDistanceCm,
@@ -155,13 +155,13 @@ export class TrafficLightDemo extends DurableObject {
 	  // If there is no changes, the client will not receive any updates.
 	  let Before = JSON.stringify({
 		connectedusers: 0,
-		trafficLightData: {
+		"1": {
 		  id: 1,
 		  status: null,
 		  distance_cm: null,
 		  last_updated: null,
 		},
-		trafficLightData2: {
+		"2": {
 		  id: 2,
 		  status: null,
 		  distance_cm: null,
@@ -173,13 +173,13 @@ export class TrafficLightDemo extends DurableObject {
 	  setInterval(() => {
 		const Current = JSON.stringify({
 		  connectedusers: this.currentlyConnectedWebSockets,
-		  trafficLightData: {
+		  "1": {
 			id: 1,
 			status: this.tramLight,
 			distance_cm: this.tramDistanceCm,
 			last_updated: this.tramLastUpdate,
 		  },
-		  trafficLightData2: {
+		  "2": {
 			id: 2,
 			status: this.carLight,
 			distance_cm: this.carDistanceCm,
@@ -330,7 +330,7 @@ export default {
 			return stub.fetch(request);
 		}
 
-		if (request.url.endsWith("/update") && request.method === "POST") {
+		if (request.url.endsWith("/api/update") && request.method === "POST") {
 			return await stub.updateChange(request);
 		}
 		  
