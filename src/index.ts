@@ -39,12 +39,12 @@ function validateTrafficLightData(data: any): { isValid: boolean; error?: string
 /**
  * Welcome to Cloudflare Workers! This is your first Durable Objects application.
  *
- * - Run `npm run dev` in your terminal to start a development server
+ * - Run npm run dev in your terminal to start a development server
  * - Open a browser tab at http://localhost:8787/ to see your Durable Object in action
- * - Run `npm run deploy` to publish your application
+ * - Run npm run deploy to publish your application
  *
- * Bind resources to your worker in `wrangler.toml`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
+ * Bind resources to your worker in wrangler.toml. After adding bindings, a type definition for the
+ * Env object can be regenerated with npm run cf-typegen.
  *
  * Learn more at https://developers.cloudflare.com/durable-objects
  */
@@ -105,12 +105,13 @@ export class TrafficLightDemo extends DurableObject {
 	  const webSocketPair = new WebSocketPair();
 	  const [client, server] = Object.values(webSocketPair);
   
-	  // Calling `accept()` tells the runtime that this WebSocket is to begin terminating
+	  // Calling accept() tells the runtime that this WebSocket is to begin terminating
 	  // request within the Durable Object. It has the effect of "accepting" the connection,
 	  // and allowing the WebSocket to send and receive messages.
-	  server.accept();
-	  this.currentlyConnectedWebSockets += 1;
+	  
+	  this.ctx.acceptWebSocket(server);
   
+	  this.currentlyConnectedWebSockets += 1;
 	  /*
 	  server.send(JSON.stringify({
 		trafficLightData: {
@@ -145,7 +146,9 @@ export class TrafficLightDemo extends DurableObject {
 			last_updated: this.carLastUpdate,
 		  },
 		});
-		server.send(updateMessage);
+		this.ctx.getWebSockets().forEach((ws) => {
+			ws.send(updateMessage);
+	  	});
 	  };
 
 	  // Call broadcastUpdate initially to send the first data
@@ -153,44 +156,7 @@ export class TrafficLightDemo extends DurableObject {
 
 	  // Check updates every 0.1 seconds and if there is any change, broadcast it.
 	  // If there is no changes, the client will not receive any updates.
-	  let Before = JSON.stringify({
-		connectedusers: 0,
-		"1": {
-		  id: 1,
-		  status: null,
-		  distance_cm: null,
-		  last_updated: null,
-		},
-		"2": {
-		  id: 2,
-		  status: null,
-		  distance_cm: null,
-		  last_updated: null,
-		},
-	  });
-
-
-	  setInterval(() => {
-		const Current = JSON.stringify({
-		  connectedusers: this.currentlyConnectedWebSockets,
-		  "1": {
-			id: 1,
-			status: this.tramLight,
-			distance_cm: this.tramDistanceCm,
-			last_updated: this.tramLastUpdate,
-		  },
-		  "2": {
-			id: 2,
-			status: this.carLight,
-			distance_cm: this.carDistanceCm,
-			last_updated: this.carLastUpdate,
-		  },
-		});
-		if (Before !== Current) {
-			broadcastUpdate();
-		}
-		Before = Current;
-	  }, 100);
+	  
 
 	  // If the client closes the connection, the runtime will close the connection too.
 	  server.addEventListener('close', (cls: CloseEvent) => {
@@ -203,6 +169,9 @@ export class TrafficLightDemo extends DurableObject {
 		webSocket: client,
 	  });
 	}
+
+
+	
 
 	/*
 	async stateChange(request: Request): Promise<Response> {
@@ -227,7 +196,7 @@ export class TrafficLightDemo extends DurableObject {
 	}
 		*/
 
-	async updateChange(request: Request): Promise<Response> {
+	async updateChange(request: Request) {
 		let body: Record<string, UpdateRequest>;
 	  
 		try {
@@ -270,25 +239,46 @@ export class TrafficLightDemo extends DurableObject {
 		  }
 	  
 		  updates.push({ id, status, distance_cm, last_updated });
+		  const Current = JSON.stringify({
+			connectedusers: this.currentlyConnectedWebSockets,
+			"1": {
+				id: 1,
+				status: this.tramLight,
+				distance_cm: this.tramDistanceCm,
+				last_updated: this.tramLastUpdate,
+			},
+			"2": {
+				id: 2,
+				status: this.carLight,
+				distance_cm: this.carDistanceCm,
+				last_updated: this.carLastUpdate,
+			},
+		});
+		this.ctx.getWebSockets().forEach((ws) => {
+			ws.send(Current);
+	  	});
 		}
 	  
 		if (errors.length > 0) {
-		  return new Response(JSON.stringify({ errors }), {
-			status: 400,
-			headers: { 'Content-Type': 'application/json' },
-		  });
+		  return 400;
 		}
-
 	  
-		return new Response(JSON.stringify({ updates }), {
-		  status: 200,
-		  headers: { 'Content-Type': 'application/json' },
-		});
+		return 200;
 	  }
+
+
+	  async webSocketMessage(ws: WebSocket, message: ArrayBuffer | string) {
+		
+	}
+
+	async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean) {
+		this.currentlyConnectedWebSockets -= 1;
+		ws.close(code, "Durable Object is closing WebSocket");
+	}
 
 	/**
 	 * The constructor is invoked once upon creation of the Durable Object, i.e. the first call to
-	 * 	`DurableObjectStub::get` for a given identifier (no-op constructors can be omitted)
+	 * 	DurableObjectStub::get for a given identifier (no-op constructors can be omitted)
 	 *
 	 * @param ctx - The interface for interacting with Durable Object state
 	 * @param env - The interface to reference bindings declared in wrangler.toml
@@ -301,9 +291,7 @@ export class TrafficLightDemo extends DurableObject {
 	 * @param name - The name provided to a Durable Object instance from a Worker
 	 * @returns The greeting to be sent back to the Worker
 	 */
-	async sayHello(name: string): Promise<string> {
-		return `Hello, ${name}!`;
-	}
+	
 }
 
 export default {
@@ -331,7 +319,10 @@ export default {
 		}
 
 		if (request.url.endsWith("/api/update") && request.method === "POST") {
-			return await stub.updateChange(request);
+			if ((await stub.updateChange(request))== 200) {
+				return new Response(null, { status: 200 });
+			}
+			return new Response(null, { status: 400 });
 		}
 		  
 		
@@ -340,4 +331,3 @@ export default {
 		//let greeting = await stub.sayHello("world");
 	},
 } satisfies ExportedHandler<Env>;
-
