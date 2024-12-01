@@ -76,10 +76,34 @@ export class TrafficLightDemo extends DurableObject {
 	  this.carLight = "red";
 	  this.carDistanceCm = -1;
 	  this.carLastUpdate = "2000-01-01T00:00:00Z";
+
+	  this.initializeState();
+
 	}
+
+	async initializeState() {
+		const tramValue = await this.env.TrafficLightDemoKV.get("tram");
+		if (tramValue) {
+		  const data = JSON.parse(tramValue);
+		  this.tramLight = data.status;
+		  this.tramDistanceCm = data.distance_cm;
+		  this.tramLastUpdate = data.last_updated;
+		}
+	
+		const carValue = await this.env.TrafficLightDemoKV.get("car");
+		if (carValue) {
+		  const data = JSON.parse(carValue);
+		  this.carLight = data.status;
+		  this.carDistanceCm = data.distance_cm;
+		  this.carLastUpdate = data.last_updated;
+		}
+	  }
+	
+	
   
 
 	async getState(request: Request): Promise<Response> {
+
 		let Tram: TrafficLight = {
 		  id: 1,
 		  status: this.tramLight,
@@ -190,16 +214,13 @@ export class TrafficLightDemo extends DurableObject {
 	}
 		*/
 
-	async updateChange(request: Request) {
+	async updateChange(request: Request): Promise<number> {
 		let body: Record<string, UpdateRequest>;
 	  
 		try {
 		  body = await request.json();
 		} catch (e) {
-		  return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
-			status: 400,
-			headers: { 'Content-Type': 'application/json' },
-		  });
+		  return 400;
 		}
 	  
 		const errors = [];
@@ -253,6 +274,17 @@ export class TrafficLightDemo extends DurableObject {
 	  	});
 		}
 	  
+		this.env.TrafficLightDemoKV.put("tram", JSON.stringify({
+			status: this.tramLight,
+			distance_cm: this.tramDistanceCm,
+			last_updated: this.tramLastUpdate,
+		}));
+		this.env.TrafficLightDemoKV.put("car", JSON.stringify({
+			status: this.carLight,
+			distance_cm: this.carDistanceCm,
+			last_updated: this.carLastUpdate,
+		}));
+
 		if (errors.length > 0) {
 		  return 400;
 		}
@@ -312,16 +344,19 @@ export default {
 			return stub.fetch(request);
 		}
 
+
 		if (request.url.endsWith("/api/update") && request.method === "POST") {
 			if ((await stub.updateChange(request))== 200) {
 				return new Response(null, { status: 200 });
 			}
 			return new Response(null, { status: 400 });
 		}
+
+		if (request.url.endsWith("/api/get") && request.method === "GET") {
+			return await stub.getState(request);
+		}
 		  
-		
-		
-		return await stub.getState(request);
+		return new Response("Invalid request", { status: 400 });
 		//let greeting = await stub.sayHello("world");
 	},
 } satisfies ExportedHandler<Env>;
