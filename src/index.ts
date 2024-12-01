@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 
+
 interface UpdateRequest {
 	status: 'red' | 'yellow' | 'green';
 	distance_cm: number;
@@ -81,7 +82,7 @@ export class TrafficLightDemo extends DurableObject {
 	}
 
 	async initializeState() {
-		const tramValue = await this.env.TrafficLightDemoKV.get("tram");
+		const tramValue = await (this.env as Env).TrafficLightDemoKV.get("tram");
 		if (tramValue) {
 		  const data = JSON.parse(tramValue);
 		  this.tramLight = data.status;
@@ -93,7 +94,7 @@ export class TrafficLightDemo extends DurableObject {
 			this.tramLastUpdate = "2000-01-01T00:00:00Z";
 		}
 	
-		const carValue = await this.env.TrafficLightDemoKV.get("car");
+		const carValue = await (this.env as Env).TrafficLightDemoKV.get("car");
 		if (carValue) {
 		  const data = JSON.parse(carValue);
 		  this.carLight = data.status;
@@ -111,7 +112,7 @@ export class TrafficLightDemo extends DurableObject {
 	
   
 
-	async getState(request: Request): Promise<Response> {
+	async getState(request: Request): Promise<String> {
 
 		let Tram: TrafficLight = {
 		  id: 1,
@@ -128,10 +129,7 @@ export class TrafficLightDemo extends DurableObject {
 
 		
 
-		return new Response(JSON.stringify({ Tram, Car }), {
-		  status: 200,
-		  headers: { 'Content-Type': 'application/json' },
-		});
+		return JSON.stringify({ Tram, Car });
 	}
 	async fetch(request: Request): Promise<Response> {
 	  // Creates two ends of a WebSocket connection.
@@ -282,12 +280,12 @@ export class TrafficLightDemo extends DurableObject {
 	  	});
 		}
 	  
-		this.env.TrafficLightDemoKV.put("tram", JSON.stringify({
+		(this.env as Env).TrafficLightDemoKV.put("tram", JSON.stringify({
 			status: this.tramLight,
 			distance_cm: this.tramDistanceCm,
 			last_updated: this.tramLastUpdate,
 		}));
-		this.env.TrafficLightDemoKV.put("car", JSON.stringify({
+		(this.env as Env).TrafficLightDemoKV.put("car", JSON.stringify({
 			status: this.carLight,
 			distance_cm: this.carDistanceCm,
 			last_updated: this.carLastUpdate,
@@ -366,7 +364,7 @@ export default {
 		}
 
 		if (request.url.endsWith("/api/get") && request.method === "GET") {
-			return await stub.getState(request);
+			return new Response(await stub.getState(request), { status: 200, headers: { 'Content-Type': 'application/json' } });
 		}
 		  
 		return new Response("Invalid request", { status: 400 });
